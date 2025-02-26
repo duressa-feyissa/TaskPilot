@@ -83,12 +83,45 @@ class EmailService(IEmailServicePort):
         service = build("gmail", "v1", credentials=creds)
 
         try:
-            response = service.users().history().list(
+            service = build("gmail", "v1", credentials=creds)
+
+            history_response = service.users().history().list(
                 userId="me", startHistoryId=history_id
             ).execute()
-            print("New emails fetched")
-            print("Response: ", response)
-            return response.get("history", [])
+
+            history_records = history_response.get("history", [])
+
+            if not history_records:
+                print(f"No new email history found for {user.email}.")
+                return []
+
+            message_ids = []
+            for record in history_records:
+                if "messagesAdded" in record:
+                    for message in record.get("messagesAdded", []):
+                        message_ids.append(message["message"]["id"])
+            if not message_ids:
+                print(f"No new messages found for {user.email}.")
+                return []
+
+            emails = []
+            for msg_id in message_ids:
+                message = service.users().messages().get(
+                    userId="me", id=msg_id, format="full"
+                ).execute()
+                email_data = {
+                    "id": message["id"],
+                    "threadId": message["threadId"],
+                    "labelIds": message.get("labelIds", []),
+                    "snippet": message.get("snippet", ""),
+                    "headers": {header["name"]: header["value"] for header in message["payload"]["headers"]},
+                    "body": message["payload"].get("body", {}).get("data", "")
+                }
+                emails.append(email_data)
+
+            print(f"Fetched {len(emails)} new emails for {user.email}.")
+            print(message)
+            return emails
 
         except Exception as e:
             print(f"Error fetching emails for {user.email}: {e}")
