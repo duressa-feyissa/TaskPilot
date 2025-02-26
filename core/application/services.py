@@ -1,17 +1,17 @@
-from typing import List, Optional
+import base64
+from typing import Any, Dict, List, Optional
 
 import requests
 from fastapi import HTTPException
 from google.auth.transport.requests import Request
 from google.oauth2 import credentials
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from httplib2 import Credentials
 
 from config import (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PROJECT_ID,
                     TOKEN_URI, TOPIC_NAME)
 from core.application.ports.inbound import IEmailServicePort, IUserServicePort
 from core.application.ports.outbound import IUserRepositoryPort
+from core.application.schema import EmailData
 from core.domain.entity import User
 
 
@@ -79,52 +79,75 @@ class EmailService(IEmailServicePort):
             client_id=GOOGLE_CLIENT_ID,
             client_secret=GOOGLE_CLIENT_SECRET
         )
-
-        service = build("gmail", "v1", credentials=creds)
-
         try:
-            service = build("gmail", "v1", credentials=creds)
-
+            service = build('gmail', 'v1', credentials=creds)
             history_response = service.users().history().list(
-                userId="me", startHistoryId=history_id
+                userId='me', startHistoryId=history_id
             ).execute()
 
-            history_records = history_response.get("history", [])
-
-            if not history_records:
-                print(f"No new email history found for {user.email}.")
-                return []
+            history_records = history_response.get('history', [])
 
             message_ids = []
-            for record in history_records:
-                if "messagesAdded" in record:
-                    for message in record.get("messagesAdded", []):
-                        message_ids.append(message["message"]["id"])
-            if not message_ids:
-                print(f"No new messages found for {user.email}.")
-                return []
+            if history_records:
+                for record in history_records:
+                    if 'messagesAdded' in record:
+                        for message_added in record['messagesAdded']:
+                            message_ids.append(message_added['message']['id'])
 
-            emails = []
-            for msg_id in message_ids:
+            messages_json: List[EmailData] = []
+            for message_id in message_ids:
                 message = service.users().messages().get(
-                    userId="me", id=msg_id, format="full"
+                    userId='me', id=message_id, format='full'
                 ).execute()
-                email_data = {
-                    "id": message["id"],
-                    "threadId": message["threadId"],
-                    "labelIds": message.get("labelIds", []),
-                    "snippet": message.get("snippet", ""),
-                    "headers": {header["name"]: header["value"] for header in message["payload"]["headers"]},
-                    "body": message["payload"].get("body", {}).get("data", "")
-                }
-                emails.append(email_data)
 
-            print(f"Fetched {len(emails)} new emails for {user.email}.")
-            print(message)
-            return emails
+                headers = {header["name"]: header["value"]
+                           for header in message["payload"]["headers"]}
+
+                email_data = EmailData(
+                    id=message["id"],
+                    threadId=message["threadId"],
+                    labelIds=message.get("labelIds", []),
+                    snippet=message.get("snippet", ""),
+                    headers=headers,
+                )
+
+                payload = message["payload"]
+                body_data = ""
+
+                if "parts" in payload:
+                    for part in payload["parts"]:
+                        if part["mimeType"] == "text/plain":
+                            body_data = part["body"].get("data", "")
+                            break
+                        elif part["mimeType"] == "text/html":
+                            body_data = part["body"].get("data", "")
+                            if not body_data and "parts" in part:
+                                for inner_part in part["parts"]:
+                                    if inner_part["mimeType"] == "text/html":
+                                        body_data = inner_part["body"].get(
+                                            "data", "")
+                                        break
+                            if body_data:
+                                break
+                elif "body" in payload and "data" in payload["body"]:
+                    body_data = payload["body"]["data"]
+
+                if body_data:
+                    try:
+                        body_data = base64.urlsafe_b64decode(
+                            body_data).decode("utf-8")
+                    except Exception as body_decode_error:
+                        print(
+                            f"Error decoding body for message {message_id}: {body_decode_error}")
+                        body_data = f"Decoding Error: {body_decode_error}"
+
+                email_data.body = body_data
+                messages_json.append(email_data)
+            print(f"Messages: {messages_json}")
+            return messages_json
 
         except Exception as e:
-            print(f"Error fetching emails for {user.email}: {e}")
+            print(f'An error occurred: {e}')
             return []
 
     async def store_user_tokens(self, user: User) -> None:
