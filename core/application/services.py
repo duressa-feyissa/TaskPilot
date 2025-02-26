@@ -86,7 +86,8 @@ class EmailService(IEmailServicePort):
             response = service.users().history().list(
                 userId="me", startHistoryId=history_id
             ).execute()
-
+            print("New emails fetched")
+            print("Response: ", response)
             return response.get("history", [])
 
         except Exception as e:
@@ -97,4 +98,4 @@ class EmailService(IEmailServicePort):
         await self.user_repository.update_user(user.id, user)
 
     async def get_user_credentials(self, email: str) -> Optional[User]:
-        return self.user_repository.get_user_by_email(email)
+        return await self.user_repository.get_user_by_email(email)
