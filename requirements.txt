@@ -1,3 +1,11 @@
 fastapi
 uvicorn
 pydantic
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+sqlalchemy
+aiosqlite
+requests
+python-dotenv
