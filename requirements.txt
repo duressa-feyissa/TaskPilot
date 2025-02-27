@@ -10,4 +10,4 @@ aiosqlite
 requests
 python-dotenv
 dateparser
-google-generativeai==0.8.4
+google-genai
