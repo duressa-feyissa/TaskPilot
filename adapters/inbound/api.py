@@ -11,6 +11,7 @@ from config import (AUTH_PROVIDER_X509_CERT_URL, AUTH_URI, GOOGLE_CLIENT_ID,
                     GOOGLE_CLIENT_SECRET, PROJECT_ID, REDIRECT_URI, SCOPES,
                     TOKEN_URI)
 from core.application.ports.inbound import IEmailServicePort, IUserServicePort
+from core.application.schema import EmailHistoryRequest
 from core.domain.entity import User
 from dependencies import get_email_service, get_user_service
 
@@ -73,7 +74,7 @@ async def callback(request: Request, auth_service: IUserServicePort = Depends(ge
             picture=user_info.get("picture"),
         )
         await auth_service.create_user(user)
-
+        await email_service.watch_user(user)
         return {"message": "User Logged in successfully"}
     return {"error": "Error getting user info"}
 
@@ -93,6 +94,19 @@ async def email_notification(request: Request, email_service: IEmailServicePort 
         await email_service.fetch_new_emails(user, history_id)
 
         return {"message": "Notification received"}
+    except Exception as e:
+        print(f"Error: {e}")
+        return {"error": str(e)}
+
+
+@router.post("/test")
+async def email_notification(request: EmailHistoryRequest, email_service: IEmailServicePort = Depends(get_email_service)):
+    try:
+
+        user = await email_service.get_user_credentials(request.email)
+        if not user:
+            raise
+        return await email_service.process_emails(user, request.history_id)
     except Exception as e:
         print(f"Error: {e}")
         return {"error": str(e)}

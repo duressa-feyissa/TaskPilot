@@ -16,8 +16,13 @@ class IUserServicePort(ABC):
 
 
 class IEmailServicePort(ABC):
+
     @abstractmethod
-    async def watch_gmail(self, user: User) -> dict:
+    async def watch_user(self, user: User) -> dict:
+        pass
+
+    @abstractmethod
+    async def watch_gmail(self) -> dict:
         """Registers the user's Gmail inbox for push notifications."""
         pass
 
@@ -33,5 +38,10 @@ class IEmailServicePort(ABC):
 
     @abstractmethod
     async def get_user_credentials(self, email: str) -> Optional[User]:
+        """Retrieves stored credentials for a user."""
+        pass
+
+    @abstractmethod
+    async def process_emails(self, user: User, history_id: str):
         """Retrieves stored credentials for a user."""
         pass
