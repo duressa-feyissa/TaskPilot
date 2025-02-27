@@ -24,13 +24,13 @@ flow = Flow.from_client_config(
         "web": {
             "client_id": GOOGLE_CLIENT_ID,
             "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uris": [REDIRECT_URI[0]],
+            "redirect_uris": [REDIRECT_URI[1]],
             "auth_uri": AUTH_URI,
             "token_uri": TOKEN_URI,
         }
     },
     scopes=SCOPES,
-    redirect_uri=REDIRECT_URI[0]
+    redirect_uri=REDIRECT_URI[1]
 )
 
 
