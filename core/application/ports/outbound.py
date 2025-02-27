@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from core.domain.entity import User
+from core.domain.entity import Email, User
 
 
 class IUserRepositoryPort(ABC):
@@ -23,4 +23,12 @@ class IUserRepositoryPort(ABC):
 
     @abstractmethod
     async def get_users(self) -> List[User]:
+        pass
+
+    @abstractmethod
+    async def set_email_history(self, email: Email) -> None:
+        pass
+
+    @abstractmethod
+    async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
         pass

@@ -18,7 +18,7 @@ from core.application.helper import generate_no_rescheduled_email
 from core.application.ports.inbound import IEmailServicePort, IUserServicePort
 from core.application.ports.outbound import IUserRepositoryPort
 from core.application.schema import EmailData, EmailPriority
-from core.domain.entity import User
+from core.domain.entity import Email, User
 
 
 class UserService(IUserServicePort):
@@ -72,11 +72,14 @@ class EmailService(IEmailServicePort):
         response = service.users().watch(userId="me", body=request).execute()
         return response
 
+    async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
+        return await self.user_repository.get_emails(receiver_email, skip, limit)
+
     async def watch_gmail(self) -> None:
         users = await self.user_repository.get_users()
 
-        # for user in users:
-        #     await self.watch_user(user)
+        for user in users:
+            await self.watch_user(user)
 
         print("------ Finished watching Gmail for all users ------")
 
@@ -193,10 +196,10 @@ class EmailService(IEmailServicePort):
         new_emails = await self.fetch_new_emails(user, history_id)
         if new_emails:
             for email_data in new_emails:
-                await self.process_single_email(user, email_data)
+                await self.process_single_email(user, email_data, history_id)
         return new_emails
 
-    async def process_single_email(self, user: 'User', email_data: 'EmailData'):
+    async def process_single_email(self, user: 'User', email_data: 'EmailData', history_id: str):
         """Processes a single email using AI, generates notification title, summary, urgency, and executes actions."""
 
         generate_reply_func = types.FunctionDeclaration(
@@ -208,7 +211,7 @@ class EmailService(IEmailServicePort):
                     "title": {"type": "string", "description": "A short title summarizing the received email."},
                     "summary": {"type": "string", "description": "A brief summary of the received email's content."},
                     "priority": {"type": "string", "enum": ["High", "Medium", "Low"], "description": "The priority level of the email."},
-                    "reply_body": {"type": "string", "description": "The generated reply text. The reply content should be clear, professional, and polite, either addressing the main points of the original email, requesting clarification, scheduling a meeting, or confirming no action is required."},
+                    "reply_body": {"type": "string", "description": "The generated reply text."},
                 },
             },
         )
@@ -316,6 +319,18 @@ class EmailService(IEmailServicePort):
                         if reply_body and title:
                             self.send_email(
                                 email_data.senderEmail, "Re: " + title, reply_body, email_data.threadId, user)
+                            await self.user_repository.set_email_history(Email(
+                                user_id=user.id,
+                                sender_email=email_data.senderEmail,
+                                sender_name=email_data.senderName,
+                                receiver_email=user.email,
+                                history_id=history_id,
+                                date=datetime.datetime.now().date(),
+                                title=function_args.get("title"),
+                                summary=function_args.get("summary"),
+                                priority=function_args.get("priority"),
+                                read=False
+                            ))
                         else:
                             self._handle_processing_error(
                                 user, email_data, "Reply title or body missing.")
@@ -323,8 +338,31 @@ class EmailService(IEmailServicePort):
                     elif function_name == "schedule_meeting":
                         await self._handle_schedule_meeting(
                             user, email_data, function_args)
+                        await self.user_repository.set_email_history(Email(
+                            user_id=user.id,
+                            sender_email=email_data.senderEmail,
+                            sender_name=email_data.senderName,
+                            receiver_email=user.email,
+                            history_id=history_id,
+                            date=datetime.datetime.now().date(),
+                            title=function_args.get("title"),
+                            summary=function_args.get("summary"),
+                            priority=function_args.get("priority"),
+                            read=False
+                        ))
                     elif function_name == "no_action_required":
-                        pass
+                        await self.user_repository.set_email_history(Email(
+                            user_id=user.id,
+                            sender_email=email_data.senderEmail,
+                            sender_name=email_data.senderName,
+                            receiver_email=user.email,
+                            history_id=history_id,
+                            date=datetime.datetime.now().date(),
+                            title=function_args.get("title"),
+                            summary=function_args.get("summary"),
+                            priority=function_args.get("priority"),
+                            read=False
+                        ))
                     else:
                         self._handle_processing_error(
                             user, email_data, f"Unknown function: {function_name}")

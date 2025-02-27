@@ -1,22 +1,103 @@
 import base64
 import json
 import os
+from datetime import datetime, timedelta, timezone
+from typing import List
 
+import jwt
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 
-from config import (AUTH_PROVIDER_X509_CERT_URL, AUTH_URI, GOOGLE_CLIENT_ID,
-                    GOOGLE_CLIENT_SECRET, PROJECT_ID, REDIRECT_URI, SCOPES,
-                    TOKEN_URI)
+from config import (ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, AUTH_URI,
+                    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, REDIRECT_URI,
+                    SCOPES, SECRET_KEY, TOKEN_URI)
 from core.application.ports.inbound import IEmailServicePort, IUserServicePort
 from core.application.schema import EmailHistoryRequest
-from core.domain.entity import User
+from core.domain.entity import Email, Profile, Token, User, UserInfo
 from dependencies import get_email_service, get_user_service
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 router = APIRouter()
+
+
+def create_access_token(user: User, expires_delta: timedelta = None):
+    to_encode = {"sub": user.email}
+    expire = datetime.now(timezone.utc) + \
+        (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_access_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {
+            "sub": payload.get("sub")
+        }
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def create_access_token(user: User, expires_delta: timedelta = None):
+    to_encode = {"sub": user.email}
+    expire = datetime.now(timezone.utc) + \
+        (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_access_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {
+            "sub": payload.get("sub"),
+        }
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def get_token_from_header(request: Request):
+    authorization_header = request.headers.get("Authorization")
+    if not authorization_header:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Authorization header missing")
+
+    try:
+        scheme, token = authorization_header.split()
+        if scheme.lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization scheme")
+        return token
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid authorization header format")
+
+
+def get_current_user(request: Request):
+    token = get_token_from_header(request)
+    try:
+        payload = verify_access_token(token)
+
+        user = UserInfo(email=payload["sub"])
+
+        return user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
 
 
 flow = Flow.from_client_config(
@@ -24,13 +105,13 @@ flow = Flow.from_client_config(
         "web": {
             "client_id": GOOGLE_CLIENT_ID,
             "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uris": [REDIRECT_URI[1]],
+            "redirect_uris": [REDIRECT_URI[0], REDIRECT_URI[1]],
             "auth_uri": AUTH_URI,
             "token_uri": TOKEN_URI,
         }
     },
     scopes=SCOPES,
-    redirect_uri=REDIRECT_URI[1]
+    redirect_uri=REDIRECT_URI[0]
 )
 
 
@@ -43,7 +124,7 @@ async def login():
     return RedirectResponse(auth_url)
 
 
-@router.get("/auth/callback")
+@router.get("/auth/callback", response_model=Token)
 async def callback(request: Request, auth_service: IUserServicePort = Depends(get_user_service), email_service: IEmailServicePort = Depends(get_email_service)):
     """
     Handles the OAuth2 callback after the user authorizes the app.
@@ -75,7 +156,11 @@ async def callback(request: Request, auth_service: IUserServicePort = Depends(ge
         )
         await auth_service.create_user(user)
         await email_service.watch_user(user)
-        return {"message": "User Logged in successfully"}
+        access_token = create_access_token(user)
+        return Token(
+            access_token=access_token,
+            token_type="bearer"
+        )
     return {"error": "Error getting user info"}
 
 
@@ -110,3 +195,21 @@ async def email_notification(request: EmailHistoryRequest, email_service: IEmail
     except Exception as e:
         print(f"Error: {e}")
         return {"error": str(e)}
+
+
+@router.get("/emails", response_model=List[Email])
+async def read_users_email(current_user: UserInfo = Depends(get_current_user), email_service: IEmailServicePort = Depends(get_email_service)):
+    return await email_service.get_emails(current_user.email, 0, 10)
+
+
+@router.get("/me", response_model=Profile)
+async def read_users_email(current_user: UserInfo = Depends(get_current_user), auth_service: IUserServicePort = Depends(get_user_service)):
+    result = await auth_service.get_user_by_email(current_user.email)
+    return Profile(
+        id=result.id,
+        email=result.email,
+        name=result.name,
+        given_name=result.given_name,
+        family_name=result.family_name,
+        picture=result.picture
+    )

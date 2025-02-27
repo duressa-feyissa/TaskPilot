@@ -21,4 +21,4 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(get_router())
+app.include_router(get_router(), tags=["Email Service"])

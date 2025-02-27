@@ -1,13 +1,11 @@
-from abc import abstractmethod
 from typing import List, Optional
 
-from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from adapters.outbound.model import UserModel
+from adapters.outbound.model import EmailModel, UserModel
 from core.application.ports.outbound import IUserRepositoryPort
-from core.domain.entity import User
+from core.domain.entity import Email, User
 
 
 class SQLAlchemyUserRepository(IUserRepositoryPort):
@@ -50,3 +48,15 @@ class SQLAlchemyUserRepository(IUserRepositoryPort):
         async with self.db_session.begin():
             result = await self.db_session.execute(select(UserModel))
             return [user.to_domain() for user in result.scalars()]
+
+    async def set_email_history(self, email: Email) -> None:
+        async with self.db_session.begin():
+            email_db = EmailModel(**email.model_dump())
+            self.db_session.add(email_db)
+            await self.db_session.commit()
+            return email_db.to_domain()
+
+    async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
+        async with self.db_session.begin():
+            result = await self.db_session.execute(select(EmailModel).filter_by(receiver_email=receiver_email).offset(skip).limit(limit))
+            return [email.to_domain() for email in result.scalars()]

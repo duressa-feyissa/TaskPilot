@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from core.domain.entity import User
+from core.domain.entity import Email, User
 
 
 class IUserServicePort(ABC):
@@ -44,4 +44,8 @@ class IEmailServicePort(ABC):
     @abstractmethod
     async def process_emails(self, user: User, history_id: str):
         """Retrieves stored credentials for a user."""
+        pass
+
+    @abstractmethod
+    async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
         pass
