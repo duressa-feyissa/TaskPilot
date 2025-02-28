@@ -236,19 +236,6 @@ async def email_notification(request: Request,  auth_service: IUserServicePort =
         return {"error": str(e)}
 
 
-@router.post("/test")
-async def email_notification(request: EmailHistoryRequest, email_service: IEmailServicePort = Depends(get_email_service)):
-    try:
-
-        user = await email_service.get_user_credentials(request.email)
-        if not user:
-            raise
-        return await email_service.process_emails(user, request.history_id)
-    except Exception as e:
-        print(f"Error: {e}")
-        return {"error": str(e)}
-
-
 @router.get("/emails", response_model=List[Email])
 async def read_users_email(current_user: UserInfo = Depends(get_current_user), email_service: IEmailServicePort = Depends(get_email_service)):
     return await email_service.get_emails(current_user.email, 0, 10)

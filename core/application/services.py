@@ -77,7 +77,7 @@ class EmailService(IEmailServicePort):
 
     async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
         return await self.user_repository.get_emails(receiver_email, skip, limit)
-    
+
     async def get_latest_email_by_date(self, receiver_email: str) -> Optional[Email]:
         return await self.user_repository.get_latest_email_by_date(receiver_email)
 
@@ -89,7 +89,7 @@ class EmailService(IEmailServicePort):
 
         print("------ Finished watching Gmail for all users ------")
 
-    async def fetch_new_emails(self, user: User, history_id: str) -> List[EmailData]:
+    async def fetch_latest_unread_email(self, user: User) -> Optional[EmailData]:
         creds = credentials.Credentials(
             token=user.access_token,
             refresh_token=user.refresh_token,
@@ -99,91 +99,89 @@ class EmailService(IEmailServicePort):
         )
         try:
             service = build('gmail', 'v1', credentials=creds)
-            history_response = service.users().history().list(
-                userId='me', startHistoryId=history_id
+
+            # Fetch unread messages (max 5)
+            messages_response = service.users().messages().list(
+                userId='me', q='is:unread', maxResults=5
             ).execute()
 
-            history_records = history_response.get('history', [])
+            messages = messages_response.get('messages', [])
+            # Sort messages by internal date (newest first)
+            sorted_messages = sorted(messages, key=lambda msg: msg.get(
+                'internalDate', 0), reverse=True)
 
-            message_ids = []
-            if history_records:
-                for record in history_records:
-                    if 'messagesAdded' in record:
-                        for message_added in record['messagesAdded']:
-                            message_ids.append(message_added['message']['id'])
+            for message_data in sorted_messages:
+                message_id = message_data['id']
+                message = service.users().messages().get(
+                    userId='me', id=message_id, format='full'
+                ).execute()
 
-            messages_json: List[EmailData] = []
-            for message_id in message_ids:
-                try:
-                    message = service.users().messages().get(
-                        userId='me', id=message_id, format='full'
+                if 'UNREAD' in message.get('labelIds', []):
+                    headers = {header["name"]: header["value"]
+                               for header in message["payload"]["headers"]}
+
+                    sender = headers.get("From", "")
+                    sender_name = None
+                    sender_email = ""
+
+                    if "<" in sender and ">" in sender:
+                        sender_name = sender.split("<")[0].strip()
+                        sender_email = sender.split(
+                            "<")[1].split(">")[0].strip()
+                    else:
+                        sender_email = sender.strip()
+
+                    priority = headers.get("Priority", "").lower()
+                    priority_enum = (
+                        EmailPriority.HIGH if priority == "high" else
+                        EmailPriority.MEDIUM if priority == "medium" else
+                        EmailPriority.LOW
+                    )
+
+                    email_data = EmailData(
+                        id=message["id"],
+                        threadId=message["threadId"],
+                        senderName=sender_name,
+                        senderEmail=sender_email,
+                        priority=priority_enum
+                    )
+
+                    # Extract email body
+                    payload = message["payload"]
+                    body_data = ""
+
+                    if "parts" in payload:
+                        for part in payload["parts"]:
+                            if part["mimeType"] == "text/plain":
+                                body_data = part["body"].get("data", "")
+                                break
+                            elif part["mimeType"] == "text/html" and not body_data:
+                                body_data = part["body"].get("data", "")
+
+                    elif "body" in payload and "data" in payload["body"]:
+                        body_data = payload["body"]["data"]
+
+                    if body_data:
+                        try:
+                            body_data = base64.urlsafe_b64decode(
+                                body_data).decode("utf-8").strip()
+                            email_data.body = body_data
+                        except Exception as body_decode_error:
+                            print(
+                                f"Error decoding body for message {message_id}: {body_decode_error}")
+
+                    # Mark message as read
+                    service.users().messages().modify(
+                        userId='me', id=message_id, body={'removeLabelIds': ['UNREAD']}
                     ).execute()
 
-                    if 'UNREAD' in message.get('labelIds', []):
-                        headers = {header["name"]: header["value"]
-                                   for header in message["payload"]["headers"]}
+                    return email_data
 
-                        sender = headers.get("From", None)
-                        sender_name = None
-                        sender_email = ""
+            return None
 
-                        if sender:
-                            if "<" in sender and ">" in sender:
-                                sender_name = sender.split("<")[0].strip()
-                                sender_email = sender.split(
-                                    "<")[1].split(">")[0].strip()
-                            else:
-                                sender_email = sender.strip()
-
-                        priority = headers.get("Priority", None)
-                        priority_enum = EmailPriority.LOW
-                        if priority and priority.lower() == "high":
-                            priority_enum = EmailPriority.HIGH
-                        elif priority and priority.lower() == "medium":
-                            priority_enum = EmailPriority.MEDIUM
-
-                        email_data = EmailData(
-                            id=message["id"],
-                            threadId=message["threadId"],
-                            senderName=sender_name,
-                            senderEmail=sender_email,
-                            priority=priority_enum,
-                        )
-
-                        payload = message["payload"]
-                        body_data = ""
-
-                        if "parts" in payload:
-                            for part in payload["parts"]:
-                                if part["mimeType"] == "text/plain":
-                                    body_data = part["body"].get("data", "")
-                                    break
-                                elif part["mimeType"] == "text/html" and not body_data:
-                                    # Fallback to HTML if plain text is not available
-                                    body_data = part["body"].get("data", "")
-
-                        elif "body" in payload and "data" in payload["body"]:
-                            body_data = payload["body"]["data"]
-
-                        if body_data:
-                            try:
-                                body_data = base64.urlsafe_b64decode(
-                                    body_data).decode("utf-8")
-                                body_data = body_data.strip()
-                                email_data.body = body_data
-                            except Exception as body_decode_error:
-                                print(
-                                    f"Error decoding body for message {message_id}: {body_decode_error}"
-                                )
-
-                        messages_json.append(email_data)
-                except Exception as message_error:
-                    print(
-                        f"Error processing message {message_id}: {message_error}")
-            return messages_json
         except Exception as e:
-            print(f"Error:  {e} 12")
-            return []
+            print(f"Error fetching emails: {e}")
+            return None
 
     async def store_user_tokens(self, user: User) -> None:
         await self.user_repository.update_user(user.id, user)
@@ -198,11 +196,11 @@ class EmailService(IEmailServicePort):
         This function retrieves new emails, iterates through them, and calls the
         process_single_email function for each email to determine the appropriate action.
         """
-        new_emails = await self.fetch_new_emails(user, history_id)
-        if new_emails:
-            for email_data in new_emails:
-                await self.process_single_email(user, email_data, current_history_id)
-        return new_emails
+        new_email = await self.fetch_latest_unread_email(user)
+        if new_email:
+            await self.process_single_email(user, new_email, current_history_id)
+            return [new_email]
+        return []
 
     async def process_single_email(self, user: 'User', email_data: 'EmailData', history_id: str):
         """Processes a single email using AI, generates notification title, summary, urgency, and executes actions."""

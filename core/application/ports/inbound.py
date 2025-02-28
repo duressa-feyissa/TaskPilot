@@ -31,11 +31,6 @@ class IEmailServicePort(ABC):
         pass
 
     @abstractmethod
-    async def fetch_new_emails(self, user: User, history_id: str) -> List[dict]:
-        """Fetches new emails since the given history ID."""
-        pass
-
-    @abstractmethod
     async def store_user_tokens(self, user: User) -> None:
         """Stores updated user authentication tokens securely."""
         pass
