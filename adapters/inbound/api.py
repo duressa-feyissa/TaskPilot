@@ -218,7 +218,7 @@ async def email_notification(request: Request,  auth_service: IUserServicePort =
     try:
         body = await request.json()
         data = json.loads(base64.b64decode(body["message"]["data"]))
-        history_id = data.get("historyId")
+        history_id = str(data.get("historyId"))
         user_email = data.get("emailAddress")
         user = await email_service.get_user_credentials(user_email)
         await email_service.process_emails(user, history_id, history_id)
