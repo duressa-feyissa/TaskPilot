@@ -227,7 +227,7 @@ async def email_notification(request: Request,  auth_service: IUserServicePort =
         user = await email_service.get_user_credentials(user_email)
         email = await email_service.get_latest_email_by_date(user_email)
         data = []
-        if not email:
+        if email:
             data = await email_service.process_emails(user, email.history_id)
         else:
             data = await email_service.process_emails(user, history_id)
