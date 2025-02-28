@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -58,5 +59,11 @@ class SQLAlchemyUserRepository(IUserRepositoryPort):
 
     async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
         async with self.db_session.begin():
-            result = await self.db_session.execute(select(EmailModel).filter_by(receiver_email=receiver_email).offset(skip).limit(limit))
+            result = await self.db_session.execute(
+                select(EmailModel)
+                .filter_by(receiver_email=receiver_email)
+                .order_by(desc(EmailModel.date))
+                .offset(skip)
+                .limit(limit)
+            )
             return [email.to_domain() for email in result.scalars()]

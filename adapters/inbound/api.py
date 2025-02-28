@@ -1,4 +1,5 @@
 import base64
+import html
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -6,8 +7,8 @@ from typing import List
 
 import jwt
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 
 from config import (ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, AUTH_URI,
@@ -157,9 +158,59 @@ async def callback(request: Request, auth_service: IUserServicePort = Depends(ge
         await auth_service.create_user(user)
         await email_service.watch_user(user)
         access_token = create_access_token(user)
-        FRONTEND_URL = "http://192.168.174.194:3000/"
-        return RedirectResponse(url=f"{FRONTEND_URL}?token={access_token}")
+        chrome_extension_url = "chrome-extension://nnklciemhdhkoeieljphgcffbcfbikmm/callback.html"
+        url = f"{chrome_extension_url}?token={access_token}"
+        redirect_url = f"http://127.0.0.1:8000/redirect?token={access_token}"
+        return RedirectResponse(url=redirect_url)
     return {"error": "Error getting user info"}
+
+
+@router.get("/redirect", response_class=HTMLResponse)
+async def redirect_page(token: str = Query(None, description="JWT token for authentication")):
+    if not token:
+        return HTMLResponse(
+            content="""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Error</title>
+            </head>
+            <body>
+                <h1>Error: Missing token</h1>
+            </body>
+            </html>
+            """,
+            status_code=400
+        )
+
+    safe_token = html.escape(token)
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Processing...</title>
+        <script>
+            window.onload = function() {{
+                const token = "{safe_token}";
+
+                // Send the token to the Chrome extension using window.postMessage
+                window.postMessage({{ type: "FROM_PAGE", token: token }}, "*");
+
+                document.body.innerHTML = "<h1>Token sent successfully!</h1>";
+            }};
+        </script>
+    </head>
+    <body>
+        <h1>Processing...</h1>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 
 @router.post("/email-notification")
