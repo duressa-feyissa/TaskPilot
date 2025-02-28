@@ -67,3 +67,14 @@ class SQLAlchemyUserRepository(IUserRepositoryPort):
                 .limit(limit)
             )
             return [email.to_domain() for email in result.scalars()]
+
+    async def get_latest_email_by_date(self, receiver_email: str) -> Optional[Email]:
+        async with self.db_session.begin():
+            result = await self.db_session.execute(
+                select(EmailModel)
+                .filter_by(receiver_email=receiver_email)
+                .order_by(desc(EmailModel.date))
+                .limit(1)
+            )
+            email = result.scalar_one_or_none()
+            return email.to_domain() if email else None
