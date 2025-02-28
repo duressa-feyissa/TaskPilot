@@ -218,14 +218,24 @@ async def email_notification(request: Request,  auth_service: IUserServicePort =
     try:
         body = await request.json()
         data = json.loads(base64.b64decode(body["message"]["data"]))
-
         history_id = data.get("historyId")
         user_email = data.get("emailAddress")
-
-        print(f"New email for {user_email}, History ID: {history_id}")
         user = await email_service.get_user_credentials(user_email)
         await email_service.process_emails(user, history_id, history_id)
         return {"message": "Notification received"}
+    except Exception as e:
+        print(f"Error: {e}")
+        return {"error": str(e)}
+
+
+@router.post("/test")
+async def email_notification(request: EmailHistoryRequest, email_service: IEmailServicePort = Depends(get_email_service)):
+    try:
+
+        user = await email_service.get_user_credentials(request.email)
+        if not user:
+            raise
+        return await email_service.process_emails(user, request.history_id, request.history_id)
     except Exception as e:
         print(f"Error: {e}")
         return {"error": str(e)}

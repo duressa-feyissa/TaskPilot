@@ -259,8 +259,7 @@ class EmailService(IEmailServicePort):
         prompt = f"""
         Analyze the following email and determine the appropriate action. Use the provided functions to execute the action.
 
-        ### **Email Content:**  
-        {email_data.body}
+        ### **Email Content:** {email_data.body}
 
         Today is {today_date.strftime("%A")}, {today_date.strftime("%Y-%m-%d")}.
 
@@ -290,6 +289,8 @@ class EmailService(IEmailServicePort):
         - Ensure the response is **professional and polite**.
         - If details are missing, request clarification.
 
+        ### **Output:**
+        **Only return a function call. Do not return any text.**
         """
 
         story_tools = types.Tool(
