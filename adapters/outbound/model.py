@@ -24,6 +24,7 @@ class UserModel(Base):
     family_name = Column(String(255), nullable=True)           # Added length
     picture = Column(String(500), nullable=True)               # Added length
     locale = Column(String(50), nullable=True)                 # Added length
+    history_id = Column(String(255), nullable=True)
 
     def to_domain(self) -> User:
         return User(
@@ -38,6 +39,7 @@ class UserModel(Base):
             family_name=self.family_name,
             picture=self.picture,
             locale=self.locale,
+            history_id=self.history_id
         )
 
 

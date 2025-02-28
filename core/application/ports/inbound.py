@@ -11,6 +11,10 @@ class IUserServicePort(ABC):
         pass
 
     @abstractmethod
+    async def update_user(self, user: User) -> User:
+        pass
+
+    @abstractmethod
     async def get_user_by_email(self, email: str) -> User:
         pass
 

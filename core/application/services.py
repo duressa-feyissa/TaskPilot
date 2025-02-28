@@ -37,6 +37,9 @@ class UserService(IUserServicePort):
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
+    async def update_user(self, user: User) -> User:
+        return await self.user_repository.update_user(user)
+
 
 class EmailService(IEmailServicePort):
     def __init__(self, user_repository: IUserRepositoryPort):
@@ -93,11 +96,8 @@ class EmailService(IEmailServicePort):
         )
         try:
             service = build('gmail', 'v1', credentials=creds)
-            email = await self.user_repository.get_latest_email_by_date(user.email)
-            last_history_id = email.history_id if email and email.history_id else str(
-                int(history_id) - 1)
             history_response = service.users().history().list(
-                userId='me', startHistoryId=last_history_id
+                userId='me', startHistoryId=history_id
             ).execute()
 
             history_records = history_response.get('history', [])

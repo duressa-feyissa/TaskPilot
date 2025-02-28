@@ -214,7 +214,7 @@ async def redirect_page(token: str = Query(None, description="JWT token for auth
 
 
 @router.post("/email-notification")
-async def email_notification(request: Request, email_service: IEmailServicePort = Depends(get_email_service)):
+async def email_notification(request: Request,  auth_service: IUserServicePort = Depends(get_user_service), email_service: IEmailServicePort = Depends(get_email_service)):
     try:
         body = await request.json()
         data = json.loads(base64.b64decode(body["message"]["data"]))
@@ -225,7 +225,12 @@ async def email_notification(request: Request, email_service: IEmailServicePort 
         print(f"New email for {user_email}, History ID: {history_id}")
 
         user = await email_service.get_user_credentials(user_email)
-        await email_service.fetch_new_emails(user, history_id)
+        if not user.history_id:
+            await email_service.process_emails(user, history_id)
+        else:
+            await email_service.process_emails(user, user.history_id)
+        user.history_id = history_id
+        await auth_service.update_user(user)
 
         return {"message": "Notification received"}
     except Exception as e:

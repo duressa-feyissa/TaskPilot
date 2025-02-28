@@ -33,6 +33,7 @@ class User(BaseModel):
     given_name: Optional[str] = None
     family_name: Optional[str] = None
     picture: Optional[str] = None
+    history_id: Optional[str] = None
 
     class Config:
         from_attributes = True
