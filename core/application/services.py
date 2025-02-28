@@ -191,7 +191,7 @@ class EmailService(IEmailServicePort):
     async def get_user_credentials(self, email: str) -> Optional[User]:
         return await self.user_repository.get_user_by_email(email)
 
-    async def process_emails(self, user: User, history_id: str):
+    async def process_emails(self, user: User, history_id: str, current_history_id: str):
         """
         Processes new emails, handling various scenarios with AI-driven decisions.
 
@@ -201,7 +201,7 @@ class EmailService(IEmailServicePort):
         new_emails = await self.fetch_new_emails(user, history_id)
         if new_emails:
             for email_data in new_emails:
-                await self.process_single_email(user, email_data, history_id)
+                await self.process_single_email(user, email_data, current_history_id)
         return new_emails
 
     async def process_single_email(self, user: 'User', email_data: 'EmailData', history_id: str):

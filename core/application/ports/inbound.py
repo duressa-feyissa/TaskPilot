@@ -46,7 +46,7 @@ class IEmailServicePort(ABC):
         pass
 
     @abstractmethod
-    async def process_emails(self, user: User, history_id: str):
+    async def process_emails(self, user: User, history_id: str, current_history_id: str) -> List[Email]:
         """Retrieves stored credentials for a user."""
         pass
 
