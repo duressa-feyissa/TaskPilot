@@ -5,6 +5,8 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 REDIRECT_URI = ["http://localhost:8000/auth/callback",
                 "https://taskpilot-lwrc.onrender.com/auth/callback"]
 SCOPES = SCOPES = [

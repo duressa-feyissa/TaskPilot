@@ -112,7 +112,7 @@ flow = Flow.from_client_config(
         }
     },
     scopes=SCOPES,
-    redirect_uri=REDIRECT_URI[1]
+    redirect_uri=REDIRECT_URI[0]
 )
 
 

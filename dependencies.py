@@ -7,8 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from adapters.outbound.model import Base
 from adapters.outbound.repository import SQLAlchemyUserRepository
 from core.application.services import EmailService, UserService
-
-DATABASE_URL = "sqlite+aiosqlite:///./task_pilot.db"
+from config import DATABASE_URL
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = sessionmaker(

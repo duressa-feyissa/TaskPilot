@@ -14,16 +14,16 @@ class UserModel(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    email = Column(String, unique=True, nullable=False)
-    access_token = Column(String, nullable=False)
-    refresh_token = Column(String, nullable=False)
-    token_uri = Column(String, nullable=False)
-    id_token = Column(String, nullable=False)
-    name = Column(String, nullable=True)
-    given_name = Column(String, nullable=True)
-    family_name = Column(String, nullable=True)
-    picture = Column(String, nullable=True)
-    locale = Column(String, nullable=True)
+    email = Column(String(255), unique=True, nullable=False)   # Added length
+    access_token = Column(String(500), nullable=False)         # Added length
+    refresh_token = Column(String(500), nullable=False)        # Added length
+    token_uri = Column(String(500), nullable=False)            # Added length
+    id_token = Column(String(500), nullable=False)             # Added length
+    name = Column(String(255), nullable=True)                  # Added length
+    given_name = Column(String(255), nullable=True)            # Added length
+    family_name = Column(String(255), nullable=True)           # Added length
+    picture = Column(String(500), nullable=True)               # Added length
+    locale = Column(String(50), nullable=True)                 # Added length
 
     def to_domain(self) -> User:
         return User(
@@ -46,15 +46,15 @@ class EmailModel(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    sender_email = Column(String, nullable=False)
-    sender_name = Column(String, nullable=False)
-    receiver_email = Column(String, nullable=False)
-    history_id = Column(String, nullable=False)
+    sender_email = Column(String(255), nullable=False)    # Added length
+    sender_name = Column(String(255), nullable=False)     # Added length
+    receiver_email = Column(String(255), nullable=False)  # Added length
+    history_id = Column(String(255), nullable=False)      # Added length
     date = Column(DateTime, nullable=False)
-    title = Column(String, nullable=False)
-    summary = Column(String, nullable=False)
-    priority = Column(String, nullable=False)
-    read = Column(String, nullable=False)
+    title = Column(String(500), nullable=False)           # Added length
+    summary = Column(String(2000), nullable=False)        # Added length
+    priority = Column(String(50), nullable=False)         # Added length
+    read = Column(String(10), nullable=False)             # Added length
 
     def to_domain(self) -> Email:
         return Email(
