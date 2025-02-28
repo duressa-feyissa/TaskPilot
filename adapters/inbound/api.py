@@ -111,7 +111,7 @@ flow = Flow.from_client_config(
         }
     },
     scopes=SCOPES,
-    redirect_uri=REDIRECT_URI[0]
+    redirect_uri=REDIRECT_URI[1]
 )
 
 
@@ -157,10 +157,8 @@ async def callback(request: Request, auth_service: IUserServicePort = Depends(ge
         await auth_service.create_user(user)
         await email_service.watch_user(user)
         access_token = create_access_token(user)
-        return Token(
-            access_token=access_token,
-            token_type="bearer"
-        )
+        FRONTEND_URL = "http://192.168.174.194:3000/"
+        return RedirectResponse(url=f"{FRONTEND_URL}?token={access_token}")
     return {"error": "Error getting user info"}
 
 
