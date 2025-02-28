@@ -77,6 +77,9 @@ class EmailService(IEmailServicePort):
 
     async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
         return await self.user_repository.get_emails(receiver_email, skip, limit)
+    
+    async def get_latest_email_by_date(self, receiver_email: str) -> Optional[Email]:
+        return await self.user_repository.get_latest_email_by_date(receiver_email)
 
     async def watch_gmail(self) -> None:
         users = await self.user_repository.get_users()

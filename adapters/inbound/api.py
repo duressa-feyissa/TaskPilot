@@ -225,16 +225,12 @@ async def email_notification(request: Request,  auth_service: IUserServicePort =
         print(f"New email for {user_email}, History ID: {history_id}")
 
         user = await email_service.get_user_credentials(user_email)
+        email = await email_service.get_latest_email_by_date(user_email)
         data = []
-        if not user.history_id:
-            data = await email_service.process_emails(user, user.history_id)
+        if not email:
+            data = await email_service.process_emails(user, email.history_id)
         else:
             data = await email_service.process_emails(user, history_id)
-
-        if len(data) > 0:
-            user.history_id = history_id
-            await auth_service.update_user(user)
-
         return {"message": "Notification received"}
     except Exception as e:
         print(f"Error: {e}")

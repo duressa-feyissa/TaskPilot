@@ -53,3 +53,7 @@ class IEmailServicePort(ABC):
     @abstractmethod
     async def get_emails(self, receiver_email: str, skip: int, limit: int) -> List[Email]:
         pass
+    
+    @abstractmethod
+    async def get_latest_email_by_date(self, receiver_email: str) -> Optional[Email]:
+        pass
