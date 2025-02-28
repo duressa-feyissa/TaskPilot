@@ -259,37 +259,41 @@ class EmailService(IEmailServicePort):
         prompt = f"""
         Analyze the following email and determine the appropriate action. Use the provided functions to execute the action.
 
-        ### **Email Content:** {email_data.body}
+        ### **Email Content:** """
 
+        prompt = prompt + email_data.body
+
+        prompt = prompt + f"""
+        
         Today is {today_date.strftime("%A")}, {today_date.strftime("%Y-%m-%d")}.
 
         ---
 
-        ### **Instructions:**
-        #### **1. Extract Key Information**
-        - **Title**: Generate a short, descriptive title summarizing the email's topic.  
-        - **Summary**: Provide a concise explanation of the email's key message in a few sentences.  
+        # **Instructions:**
+        # **1. Extract Key Information**
+        - **Title**: Generate a short, descriptive title summarizing the email's topic.
+        - **Summary**: Provide a concise explanation of the email's key message in a few sentences.
         - **Priority Level**:
-            - **High**: Urgent matters that require immediate action (e.g., critical deadlines, emergency meetings).
-            - **Medium**: Important but not urgent (e.g., scheduling discussions, follow-ups).
+            - **High**: Urgent matters that require immediate action(e.g., critical deadlines, emergency meetings).
+            - **Medium**: Important but not urgent(e.g., scheduling discussions, follow-ups).
             - **Low**: Informational emails, notifications, or general updates.
 
-        #### **2. Determine the Appropriate Action**
+        # **2. Determine the Appropriate Action**
         - **`generate_reply`** → For responses, clarifications, or communication. The reply body should be clear, professional, and polite, either addressing the main points of the original email, requesting clarification, scheduling a meeting, or confirming no action is required.
         - **`schedule_meeting`** → When the email requests a meeting:
-            - Extract the **date** (YYYY-MM-DD) and **time** (HH:MM) if provided.
-            - If no time is mentioned, propose a reasonable time (e.g., 14:00).
+            - Extract the ** date ** (YYYY-MM-DD) and **time ** (HH: MM) if provided.
+            - If no time is mentioned, propose a reasonable time(e.g., 14: 00).
             - If no date is mentioned, schedule the next available working day.
-            - **Duration**: If the email does not specify the meeting duration, use a default value (e.g., 30 minutes).
-            - Validate that the date is in the **future** (after {today_date.strftime('%Y-%m-%d')}).
+            - **Duration**: If the email does not specify the meeting duration, use a default value(e.g., 30 minutes).
+            - Validate that the date is in the ** future ** (after {today_date.strftime('%Y-%m-%d')}).
         - **`no_action_required`** → For simple acknowledgments, notifications, or spam.
 
-        #### **3. Generate the Response Message**
-        - If scheduling a meeting, provide the **meeting link dynamically** in the reply.
+        # **3. Generate the Response Message**
+        - If scheduling a meeting, provide the ** meeting link dynamically ** in the reply.
         - Ensure the response is **professional and polite**.
         - If details are missing, request clarification.
 
-        ### **Output:**
+        # **Output:**
         **Only return a function call. Do not return any text.**
         """
 
@@ -480,7 +484,7 @@ class EmailService(IEmailServicePort):
         """
         Sends an email reply.
 
-        This function constructs an email message with a subject and body, 
+        This function constructs an email message with a subject and body,
         encodes it, and sends it using the Gmail API.
 
         It handles potential errors during email sending.
@@ -526,24 +530,23 @@ class EmailService(IEmailServicePort):
         prompt = f"""
         Generate a reply message to the user after a meeting has been scheduled.
 
-        **Meeting Link:** {meeting_link}
-        **Start Time:** {meeting_date} {meeting_time}
-        **End Time:** {meeting_date} {meeting_time} + {meeting_duration} minutes
-        **Received Email Content:** {email_data.body}
-        **Received Email Sender:** {email_data.senderEmail}
-        **Received Email Owner:** {email_data.senderName}
-        
-  
-            ### **Instructions:**
-            #### **1. Compose a Reply Message**
-            - **Reply Title:** Create a concise title for the reply, confirming the meeting schedule and reflecting the content of the received message.
-            - **Reply Body:** Write a polite and informative message.
+        **Meeting Link: ** {meeting_link}
+        **Start Time: ** {meeting_date} {meeting_time}
+        **End Time: ** {meeting_date} {meeting_time} + {meeting_duration} minutes
+        **Received Email Content: ** {email_data.body}
+        **Received Email Sender: ** {email_data.senderEmail}
+        **Received Email Owner: ** {email_data.senderName}
+
+            # **Instructions:**
+            # **1. Compose a Reply Message**
+            - **Reply Title: ** Create a concise title for the reply, confirming the meeting schedule and reflecting the content of the received message.
+            - **Reply Body: ** Write a polite and informative message.
             - Acknowledge the user's original message and address any points they raised.
             - Include the meeting link, start time, and end time in the reply body.
             - Confirm that the meeting has been successfully scheduled.
             - Tailor the response to the context and tone of the received message.
 
-            #### **2. Ensure Accuracy**
+            # **2. Ensure Accuracy**
             - The reply should accurately reflect the meeting details and the content of the received message.
             - Always generate a function call.
             - If there are any issues or missing details, include a message addressing them.
