@@ -227,9 +227,9 @@ async def email_notification(request: Request,  auth_service: IUserServicePort =
         user = await email_service.get_user_credentials(user_email)
         data = []
         if not user.history_id:
-            data = await email_service.process_emails(user, history_id)
-        else:
             data = await email_service.process_emails(user, user.history_id)
+        else:
+            data = await email_service.process_emails(user, history_id)
 
         if len(data) > 0:
             user.history_id = history_id
