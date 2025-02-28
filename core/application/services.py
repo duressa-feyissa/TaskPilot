@@ -336,7 +336,7 @@ class EmailService(IEmailServicePort):
                                 date=datetime.datetime.now().date(),
                                 title=function_args.get("title"),
                                 summary=function_args.get("summary"),
-                                priority=function_args.get("priority"),
+                                priority=function_args.get("priority", "low"),
                                 read=False
                             ))
                         else:
@@ -355,7 +355,7 @@ class EmailService(IEmailServicePort):
                             date=datetime.datetime.now().date(),
                             title=function_args.get("title"),
                             summary=function_args.get("summary"),
-                            priority=function_args.get("priority"),
+                            priority=function_args.get("priority", "low"),
                             read=False
                         ))
                     elif function_name == "no_action_required":
@@ -368,7 +368,7 @@ class EmailService(IEmailServicePort):
                             date=datetime.datetime.now().date(),
                             title=function_args.get("title"),
                             summary=function_args.get("summary"),
-                            priority=function_args.get("priority"),
+                            priority=function_args.get("priority", "low"),
                             read=False
                         ))
                     else:
